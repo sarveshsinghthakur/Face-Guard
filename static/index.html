@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FaceGuard — Attendance System</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#050505;--bg2:#0c0c0c;--card:#111;--card-h:#181818;
+  --brd:#1e1e1e;--brd-h:#2a2a2a;
+  --txt:#f0f0f0;--txt2:#888;--txt3:#555;
+  --acc:#6366f1;--acc-h:#818cf8;
+  --ok:#22c55e;--warn:#eab308;--err:#ef4444;
+  --r:24px;--rs:16px;--rx:12px;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;overflow-x:hidden}
+
+/* ─── Top Bar ───────────────────────────────────────────── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:1px solid var(--brd)}
+.topbar .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px;letter-spacing:-.5px}
+.topbar .brand span{color:var(--acc)}
+.topbar .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.topbar .status{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--txt2)}
+
+/* ─── Layout ────────────────────────────────────────────── */
+.main{display:grid;grid-template-columns:1fr 360px;gap:20px;padding:20px 28px;height:calc(100vh - 65px)}
+@media(max-width:900px){.main{grid-template-columns:1fr;height:auto}}
+
+/* ─── Squircle Card ─────────────────────────────────────── */
+.card{background:var(--card);border:1px solid var(--brd);border-radius:var(--r);overflow:hidden;transition:border-color .2s}
+.card:hover{border-color:var(--brd-h)}
+.card-head{padding:16px 20px;border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between}
+.card-head h2{font-size:14px;font-weight:600;letter-spacing:-.2px}
+.card-head .badge{font-size:11px;padding:3px 10px;border-radius:20px;background:var(--acc);color:#fff;font-weight:600}
+
+/* ─── Webcam ────────────────────────────────────────────── */
+.cam-wrap{position:relative;width:100%;aspect-ratio:4/3;background:#000;border-radius:var(--r) var(--r) 0 0;overflow:hidden}
+#webcam{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+#overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+.cam-footer{padding:12px 20px;display:flex;align-items:center;justify-content:space-between}
+.cam-footer .info{font-size:12px;color:var(--txt2)}
+.cam-footer .info b{color:var(--txt)}
+
+/* ─── Sidebar ───────────────────────────────────────────── */
+.sidebar{display:flex;flex-direction:column;gap:16px;overflow:hidden}
+.scroll-list{flex:1;overflow-y:auto;padding:0 12px 12px}
+.scroll-list::-webkit-scrollbar{width:4px}
+.scroll-list::-webkit-scrollbar-thumb{background:var(--brd-h);border-radius:4px}
+
+/* ─── List Items ────────────────────────────────────────── */
+.att-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--rx);transition:background .15s;margin-bottom:4px}
+.att-item:hover{background:var(--card-h)}
+.att-item .avatar{width:34px;height:34px;border-radius:var(--rx);background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--acc);flex-shrink:0}
+.att-item .detail{flex:1;min-width:0}
+.att-item .detail .name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.att-item .detail .meta{font-size:11px;color:var(--txt3)}
+.att-item .check{font-size:14px;color:var(--ok)}
+
+.empty{text-align:center;padding:40px 20px;color:var(--txt3);font-size:13px}
+
+/* ─── Modal ─────────────────────────────────────────────── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);z-index:100;display:none;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--card);border:1px solid var(--brd);border-radius:var(--r);width:380px;max-width:90vw;padding:28px;animation:fadeUp .25s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.modal h3{font-size:16px;font-weight:600;margin-bottom:4px}
+.modal p{font-size:13px;color:var(--txt2);margin-bottom:20px}
+.modal .face-preview{width:100px;height:100px;border-radius:var(--rs);object-fit:cover;background:var(--bg2);margin:0 auto 20px;display:block;border:2px solid var(--brd)}
+.modal label{display:block;font-size:12px;font-weight:500;color:var(--txt2);margin-bottom:6px}
+.modal input{width:100%;padding:10px 14px;border-radius:var(--rx);border:1px solid var(--brd);background:var(--bg2);color:var(--txt);font-size:13px;font-family:inherit;outline:none;margin-bottom:14px;transition:border-color .2s}
+.modal input:focus{border-color:var(--acc)}
+.modal .actions{display:flex;gap:10px;margin-top:8px}
+.btn{padding:10px 20px;border-radius:var(--rx);border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-primary{background:var(--acc);color:#fff}.btn-primary:hover{background:var(--acc-h)}
+.btn-ghost{background:transparent;color:var(--txt2);border:1px solid var(--brd)}.btn-ghost:hover{border-color:var(--brd-h);color:var(--txt)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<header class="topbar">
+  <div class="brand"><span>●</span> FaceGuard</div>
+  <div class="status"><span class="dot"></span> <span id="statusText">Connecting…</span></div>
+</header>
+
+<!-- Main Layout -->
+<div class="main">
+  <!-- Camera Card -->
+  <div class="card">
+    <div class="cam-wrap">
+      <video id="webcam" autoplay playsinline muted></video>
+      <canvas id="overlay"></canvas>
+    </div>
+    <div class="cam-footer">
+      <div class="info">Faces: <b id="faceCount">0</b></div>
+      <div class="info">Date: <b id="today"></b></div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <!-- Attendance Card -->
+    <div class="card" style="flex:1;display:flex;flex-direction:column">
+      <div class="card-head">
+        <h2>Today's Attendance</h2>
+        <span class="badge" id="attBadge">0</span>
+      </div>
+      <div class="scroll-list" id="attList">
+        <div class="empty" id="attEmpty">No attendance yet</div>
+      </div>
+    </div>
+    <!-- Users Card -->
+    <div class="card" style="flex:0 0 auto;max-height:220px;display:flex;flex-direction:column">
+      <div class="card-head">
+        <h2>Registered Users</h2>
+        <span class="badge" id="userBadge">0</span>
+      </div>
+      <div class="scroll-list" id="userList">
+        <div class="empty" id="userEmpty">No users registered</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Registration Modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3>New Face Detected</h3>
+    <p>Register this person to start tracking attendance.</p>
+    <img id="modalFace" class="face-preview" alt="face" />
+    <label for="regName">Name</label>
+    <input id="regName" placeholder="e.g. Sarvesh" autocomplete="off" />
+    <label for="regEmail">Email</label>
+    <input id="regEmail" type="email" placeholder="e.g. sarvesh@example.com" autocomplete="off" />
+    <div class="actions">
+      <button class="btn btn-ghost" id="btnSkip">Skip</button>
+      <button class="btn btn-primary" id="btnRegister" style="flex:1">Register</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ─── State ──────────────────────────────────────────── */
+const $ = s => document.querySelector(s);
+let ws = null;
+let videoReady = false;
+let modalOpen = false;
+let pendingFace = null;      // base64 face image for registration
+let skipCooldown = false;    // prevent modal spam after skip
+const SEND_INTERVAL = 400;  // ms between frame sends
+
+/* ─── Init ───────────────────────────────────────────── */
+$('#today').textContent = new Date().toLocaleDateString('en-GB');
+
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width:640, height:480, facingMode:'user' } });
+    const video = $('#webcam');
+    video.srcObject = stream;
+    video.onloadedmetadata = () => { videoReady = true; };
+  } catch(e) {
+    $('#statusText').textContent = 'Camera denied';
+    console.error(e);
+  }
+}
+
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws/video`);
+  ws.onopen  = () => { $('#statusText').textContent = 'Live'; };
+  ws.onclose = () => { $('#statusText').textContent = 'Disconnected'; setTimeout(connectWS, 2000); };
+  ws.onerror = () => { ws.close(); };
+  ws.onmessage = (e) => handleDetections(JSON.parse(e.data));
+}
+
+/* ─── Frame Capture ──────────────────────────────────── */
+const sendCanvas = document.createElement('canvas');
+sendCanvas.width = 640; sendCanvas.height = 480;
+const sendCtx = sendCanvas.getContext('2d');
+
+function sendFrame() {
+  if (!videoReady || !ws || ws.readyState !== 1 || modalOpen) return;
+  const v = $('#webcam');
+  sendCtx.drawImage(v, 0, 0, 640, 480);
+  const b64 = sendCanvas.toDataURL('image/jpeg', 0.6);
+  ws.send(JSON.stringify({ frame: b64 }));
+}
+
+setInterval(sendFrame, SEND_INTERVAL);
+
+/* ─── Draw Detections ────────────────────────────────── */
+function handleDetections(data) {
+  const dets = data.detections || [];
+  $('#faceCount').textContent = dets.length;
+  drawBoxes(dets);
+
+  // Check for unknown faces → show registration modal
+  if (!modalOpen && !skipCooldown) {
+    const unknown = dets.find(d => d.status === 'unknown' && d.face_image);
+    if (unknown) showRegisterModal(unknown.face_image);
+  }
+
+  // Refresh sidebar when new attendance recorded
+  if (dets.some(d => d.status === 'recorded')) refreshData();
+}
+
+function drawBoxes(dets) {
+  const canvas = $('#overlay');
+  const vw = canvas.parentElement.clientWidth;
+  const vh = canvas.parentElement.clientHeight;
+  canvas.width = vw; canvas.height = vh;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, vw, vh);
+
+  for (const d of dets) {
+    // Mirror the x coordinate because video is flipped
+    const x = vw - (d.bbox.x * vw) - (d.bbox.w * vw);
+    const y = d.bbox.y * vh;
+    const w = d.bbox.w * vw;
+    const h = d.bbox.h * vh;
+    const rad = 10;
+
+    const color = d.status === 'unknown' ? '#ef4444' :
+                  d.status === 'recorded' ? '#22c55e' : '#6366f1';
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, rad);
+    ctx.stroke();
+
+    // Label background
+    const label = d.name === 'Unknown' ? 'Unknown' : d.name;
+    ctx.font = '600 13px Inter, sans-serif';
+    const tw = ctx.measureText(label).width;
+    const lx = x, ly = y - 6;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(lx, ly - 18, tw + 14, 22, 6);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillText(label, lx + 7, ly - 1);
+  }
+}
+
+/* ─── Registration Modal ─────────────────────────────── */
+function showRegisterModal(faceB64) {
+  modalOpen = true;
+  pendingFace = faceB64;
+  $('#modalFace').src = `data:image/jpeg;base64,${faceB64}`;
+  $('#regName').value = '';
+  $('#regEmail').value = '';
+  $('#modalBg').classList.add('open');
+  setTimeout(() => $('#regName').focus(), 100);
+}
+
+$('#btnSkip').onclick = () => {
+  modalOpen = false;
+  pendingFace = null;
+  $('#modalBg').classList.remove('open');
+  skipCooldown = true;
+  setTimeout(() => { skipCooldown = false; }, 8000); // 8s cooldown
+};
+
+$('#btnRegister').onclick = async () => {
+  const name  = $('#regName').value.trim();
+  const email = $('#regEmail').value.trim();
+  if (!name || !email) return;
+
+  $('#btnRegister').disabled = true;
+  $('#btnRegister').textContent = 'Registering…';
+
+  try {
+    const res = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, face_image: pendingFace })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      refreshData();
+    } else {
+      alert(data.detail || 'Registration failed');
+    }
+  } catch(e) {
+    alert('Network error');
+  }
+
+  modalOpen = false;
+  pendingFace = null;
+  $('#modalBg').classList.remove('open');
+  $('#btnRegister').disabled = false;
+  $('#btnRegister').textContent = 'Register';
+};
+
+/* ─── Sidebar Data ───────────────────────────────────── */
+async function refreshData() {
+  try {
+    // Attendance
+    const aRes = await fetch('/api/attendance');
+    const aData = await aRes.json();
+    const attList = $('#attList');
+    if (aData.records.length === 0) {
+      attList.innerHTML = '<div class="empty">No attendance yet</div>';
+    } else {
+      attList.innerHTML = aData.records.map(r => `
+        <div class="att-item">
+          <div class="avatar">${r.Name.charAt(0).toUpperCase()}</div>
+          <div class="detail">
+            <div class="name">${r.Name}</div>
+            <div class="meta">${r.Time}</div>
+          </div>
+          <div class="check">✓</div>
+        </div>`).join('');
+    }
+    $('#attBadge').textContent = aData.records.length;
+
+    // Users
+    const uRes = await fetch('/api/users');
+    const uData = await uRes.json();
+    const userList = $('#userList');
+    if (uData.users.length === 0) {
+      userList.innerHTML = '<div class="empty">No users registered</div>';
+    } else {
+      userList.innerHTML = uData.users.map(u => `
+        <div class="att-item">
+          <div class="avatar">${u.name.charAt(0).toUpperCase()}</div>
+          <div class="detail">
+            <div class="name">${u.name}</div>
+            <div class="meta">${u.email}</div>
+          </div>
+        </div>`).join('');
+    }
+    $('#userBadge').textContent = uData.users.length;
+  } catch(e) { console.error(e); }
+}
+
+/* ─── Boot ───────────────────────────────────────────── */
+startCamera();
+connectWS();
+refreshData();
+setInterval(refreshData, 10000);
+</script>
+</body>
+</html>
