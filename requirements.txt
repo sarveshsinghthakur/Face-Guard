@@ -6,6 +6,4 @@ fastapi
 uvicorn
 python-multipart
 pydantic
-smtplib
-email
 pillow
