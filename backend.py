@@ -1,7 +1,4 @@
 import cv2
-import mediapipe as mp
-from mediapipe.tasks import python as mp_python
-from mediapipe.tasks.python import vision
 import numpy as np
 from deepface import DeepFace
 import os
@@ -23,18 +20,10 @@ USERS_CSV = "users.csv"
 ATTENDANCE_DIR = "attendance"
 MATCH_THRESHOLD = 0.55  # cosine similarity threshold for Facenet
 EMBEDDING_MODEL = "Facenet"  # deep learning face embedding model
-MODEL_PATH = "blaze_face_short_range.tflite"
 
 os.makedirs(KNOWN_FACES_DIR, exist_ok=True)
 os.makedirs(ATTENDANCE_DIR, exist_ok=True)
 os.makedirs("static", exist_ok=True)
-
-# ── MediaPipe Face Detector ──────────────────────────────────────────────
-base_options = mp_python.BaseOptions(model_asset_path=MODEL_PATH)
-det_options = vision.FaceDetectorOptions(
-    base_options=base_options, min_detection_confidence=0.5
-)
-face_detector = vision.FaceDetector.create_from_options(det_options)
 
 # ── In-memory state ─────────────────────────────────────────────────────
 known_encodings: list[np.ndarray] = []
@@ -257,16 +246,20 @@ async def video_ws(ws: WebSocket):
             if frame is None:
                 continue
 
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-            results = face_detector.detect(mp_image)
-
-            detections = []
-            if results.detections:
+            # Use DeepFace for face detection
+            try:
+                faces = DeepFace.extract_faces(img_path=frame, detector_backend='opencv', enforce_detection=False)
+                if not faces:
+                    continue
+                
                 h, w, _ = frame.shape
-                for det in results.detections:
-                    bx = det.bounding_box
-                    x, y, bw, bh = bx.origin_x, bx.origin_y, bx.width, bx.height
+                detections = []
+                
+                for face_data in faces:
+                    # Get face coordinates from DeepFace result
+                    x, y, bw, bh = face_data['facial_area']['x'], face_data['facial_area']['y'], \
+                                   face_data['facial_area']['w'], face_data['facial_area']['h']
+                    
                     # Pad face crop for better recognition accuracy
                     pad = int(max(bw, bh) * 0.25)
                     fy1, fy2 = max(0, y - pad), min(h, y + bh + pad)
