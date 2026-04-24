@@ -294,8 +294,11 @@ async def video_ws(ws: WebSocket):
                         },
                         "face_image": face_b64,
                     })
-
-            await ws.send_json({"detections": detections})
+                
+                await ws.send_json({"detections": detections})
+            except Exception as e:
+                print(f"Face detection error: {e}")
+                await ws.send_json({"detections": []})
     except WebSocketDisconnect:
         print("Client disconnected")
     except Exception as e:
