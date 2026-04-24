@@ -7,4 +7,3 @@ uvicorn
 python-multipart
 pydantic
 pillow
-tensorflow
